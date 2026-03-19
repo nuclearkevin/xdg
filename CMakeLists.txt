@@ -69,6 +69,51 @@ if (XDG_ENABLE_EMBREE)
   message(STATUS "Found Embree ${EMBREE_VERSION} at ${EMBREE_ROOT_DIR}")
 endif()
 
+#===============================================================================
+# Update git submodules as needed (borrowed from OpenMC)
+#===============================================================================
+find_package(Git REQUIRED)
+
+set(VENDOR_PATHS
+  vendor/fmt
+  vendor/linalg
+  vendor/argparse
+  vendor/indicators
+  vendor/catch2
+  tests/test_files
+)
+
+if (XDG_ENABLE_GPRT)
+  list(APPEND VENDOR_PATHS
+    vendor/GPRT
+  )
+endif()
+
+if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+  option(XDG_GIT_SUBMODULE "Check submodules during build" ON)
+  if(XDG_GIT_SUBMODULE)
+    message(STATUS "Submodule update")
+    foreach(VENDOR_PATH ${VENDOR_PATHS})
+      message(STATUS "Updating submodule at ${VENDOR_PATH}")
+      execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive ${CMAKE_CURRENT_SOURCE_DIR}/${VENDOR_PATH}
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                      RESULT_VARIABLE GIT_SUBMOD_RESULT)
+      if(NOT GIT_SUBMOD_RESULT EQUAL 0)
+        message(FATAL_ERROR
+          "git submodule update --init failed with erro code ${GIT_SUBMOD_RESULT}, "
+          "please checkout submodule at ${VENDOR_PATH} manually and try again.")
+      endif()
+    endforeach()
+
+  endif()
+endif()
+
+# Check to see if submodules exist (by checking one)
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/fmt/CMakeLists.txt")
+  message(FATAL_ERROR "The git submodules were not downloaded! GIT_SUBMODULE was \
+    turned off or failed. Please update submodules and try again.")
+endif()
+
 # Catch2 testing module
 if (XDG_BUILD_TESTS)
   find_package(Catch2 QUIET NO_SYSTEM_ENVIRONMENT_PATH)
