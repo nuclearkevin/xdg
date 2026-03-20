@@ -72,13 +72,17 @@ void LibMeshManager::init() {
   determine_surface_senses();
 
   // create a sideset for all faces on the boundary of the mesh
-  create_boundary_sideset();
+  if (managed_mesh_) {
+    create_boundary_sideset();
+  }
 
   // create an implicit complement
   create_implicit_complement();
 
   // libMesh initialization
-  mesh()->prepare_for_use();
+  if (managed_mesh_) {
+    managed_mesh_->prepare_for_use();
+  }
 
   map_id_spaces();
 }
@@ -371,7 +375,7 @@ void LibMeshManager::determine_surface_senses() {
 }
 
 void LibMeshManager::create_boundary_sideset() {
-  auto& boundary_info = mesh()->get_boundary_info();
+  auto& boundary_info = managed_mesh_->get_boundary_info();
   auto boundary_ids = boundary_info.get_boundary_ids();
   int next_boundary_id = boundary_ids.size() == 0 ? 1 : *std::max_element(boundary_ids.begin(), boundary_ids.end()) + 1;
 
