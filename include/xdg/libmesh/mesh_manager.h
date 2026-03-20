@@ -20,7 +20,7 @@ class LibMeshManager : public MeshManager {
   constexpr static int SIDE_NONE {-1};
 
 public:
-  LibMeshManager(void* ptr);
+  LibMeshManager(const void* ptr);
 
   LibMeshManager();
 
@@ -304,7 +304,10 @@ public:
 
   // Attributes
   protected:
-  std::unique_ptr<libMesh::Mesh> mesh_ {nullptr};
+  // a mesh managed by this class (if loading from a file)
+  std::unique_ptr<libMesh::Mesh> managed_mesh_ {nullptr};
+  // a pointer to the mesh this class is using for data-structure queries (may be managed externally)
+  const libMesh::Mesh* mesh_ {nullptr};
 
   // Ugh, double mapping
   std::unordered_map<MeshID, SidePair> mesh_id_to_sidepair_;

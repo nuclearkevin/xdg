@@ -14,18 +14,24 @@
 namespace xdg {
 
 // Constructors
-LibMeshManager::LibMeshManager(void *ptr) {}
+LibMeshManager::LibMeshManager(const void *ptr) {
+  mesh_ = dynamic_cast<const libMesh::Mesh *> (ptr);
+  if (!mesh_) {
+    fatal_error("Mesh must be of the type libMesh::Mesh");
+  }
+}
 
 LibMeshManager::LibMeshManager() : MeshManager() {}
 
 void LibMeshManager::load_file(const std::string &filepath) {
-  mesh_ = std::make_unique<libMesh::Mesh>(*XDGConfig::config().libmesh_comm(), 3);
-  mesh_->read(filepath);
+  managed_mesh_ = std::make_unique<libMesh::Mesh>(*XDGConfig::config().libmesh_comm(), 3);
+  managed_mesh_->read(filepath);
+  mesh_ = managed_mesh_.get();
 }
 
 void LibMeshManager::init() {
   // ensure that the mesh is 3-dimensional, for our use case this is expected
-  if (mesh_->mesh_dimension() != 3) {
+  if (mesh()->mesh_dimension() != 3) {
     fatal_error("Mesh must be 3-dimensional");
   }
 
@@ -368,7 +374,7 @@ void LibMeshManager::determine_surface_senses() {
 }
 
 void LibMeshManager::create_boundary_sideset() {
-  auto& boundary_info = mesh_->get_boundary_info();
+  auto& boundary_info = mesh()->get_boundary_info();
   auto boundary_ids = boundary_info.get_boundary_ids();
   int next_boundary_id = boundary_ids.size() == 0 ? 1 : *std::max_element(boundary_ids.begin(), boundary_ids.end()) + 1;
 
