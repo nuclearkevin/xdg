@@ -133,8 +133,7 @@ public:
   Sense surface_sense(MeshID surface, MeshID volume) const override;
 
   // Accessors
-  const libMesh::Mesh* mesh() const { return mesh_.get(); }
-  libMesh::Mesh* mesh() { return mesh_.get(); }
+  const libMesh::Mesh* mesh() const { return mesh_; }
 
   private:
   //! Helper struct for unique identification of an element face
