@@ -20,7 +20,7 @@ class LibMeshManager : public MeshManager {
   constexpr static int SIDE_NONE {-1};
 
 public:
-  LibMeshManager(const void* ptr);
+  LibMeshManager(const libMesh::Mesh* ptr);
 
   LibMeshManager();
 

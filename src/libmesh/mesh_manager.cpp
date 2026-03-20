@@ -14,11 +14,8 @@
 namespace xdg {
 
 // Constructors
-LibMeshManager::LibMeshManager(const void *ptr) {
-  mesh_ = dynamic_cast<const libMesh::Mesh *> (ptr);
-  if (!mesh_) {
-    fatal_error("Mesh must be of the type libMesh::Mesh");
-  }
+LibMeshManager::LibMeshManager(const libMesh::Mesh* ptr) {
+  mesh_ = ptr;
 }
 
 LibMeshManager::LibMeshManager() : MeshManager() {}
