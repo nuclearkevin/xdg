@@ -20,7 +20,7 @@ class LibMeshManager : public MeshManager {
   constexpr static int SIDE_NONE {-1};
 
 public:
-  LibMeshManager(const libMesh::Mesh* ptr);
+  LibMeshManager(const libMesh::MeshBase* ptr);
 
   LibMeshManager();
 
@@ -133,7 +133,7 @@ public:
   Sense surface_sense(MeshID surface, MeshID volume) const override;
 
   // Accessors
-  const libMesh::Mesh* mesh() const { return mesh_; }
+  const libMesh::MeshBase* mesh() const { return mesh_; }
 
   private:
   //! Helper struct for unique identification of an element face
@@ -306,7 +306,7 @@ public:
   // a mesh managed by this class (if loading from a file)
   std::unique_ptr<libMesh::Mesh> managed_mesh_ {nullptr};
   // a pointer to the mesh this class is using for data-structure queries (may be managed externally)
-  const libMesh::Mesh* mesh_ {nullptr};
+  const libMesh::MeshBase* mesh_ {nullptr};
 
   // Ugh, double mapping
   std::unordered_map<MeshID, SidePair> mesh_id_to_sidepair_;

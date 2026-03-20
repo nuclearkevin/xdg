@@ -14,7 +14,7 @@
 namespace xdg {
 
 // Constructors
-LibMeshManager::LibMeshManager(const libMesh::Mesh* ptr) {
+LibMeshManager::LibMeshManager(const libMesh::MeshBase* ptr) {
   mesh_ = ptr;
 }
 
