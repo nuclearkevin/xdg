@@ -46,7 +46,7 @@ void XDGConfig::initialize() {
 
 #ifdef XDG_ENABLE_LIBMESH
   // libmesh requires the program name, so at least one argument is needed
-  if (config::external_libmesh_init == nullptr) {
+  if (!config::external_libmesh_init && !config::external_libmesh_comm) {
     int argc = 1;
     const std::string argv{"XDG"};
     const char *argv_cstr = argv.c_str();
