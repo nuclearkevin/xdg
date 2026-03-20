@@ -71,11 +71,6 @@ void LibMeshManager::init() {
   // the mesh-based topology of the geometry
   determine_surface_senses();
 
-  // create a sideset for all faces on the boundary of the mesh
-  if (managed_mesh_) {
-    create_boundary_sideset();
-  }
-
   // create an implicit complement
   create_implicit_complement();
 
@@ -372,25 +367,6 @@ void LibMeshManager::determine_surface_senses() {
   for (const auto& [id, pair] : mesh_id_to_sidepair_) {
     sidepair_to_mesh_id_[pair] = id;
   }
-}
-
-void LibMeshManager::create_boundary_sideset() {
-  auto& boundary_info = managed_mesh_->get_boundary_info();
-  auto boundary_ids = boundary_info.get_boundary_ids();
-  int next_boundary_id = boundary_ids.size() == 0 ? 1 : *std::max_element(boundary_ids.begin(), boundary_ids.end()) + 1;
-
-  // put all mesh boundary elements in a special sideset that we can
-  // reference later if needed
-  // (any faces that are part of the implicit complement in DAGMC parlance)
-  for (auto &[id, elem_side] : subdomain_interface_map_) {
-    if (id.first == ID_NONE || id.second == ID_NONE) {
-      for (const auto &elem : elem_side) {
-        auto pair = sidepair(elem);
-        boundary_info.add_side(pair.first(), pair.side_num(), next_boundary_id);
-      }
-    }
-  }
-  boundary_info.sideset_name(next_boundary_id) = "xdg_boundary";
 }
 
 std::vector<MeshID>

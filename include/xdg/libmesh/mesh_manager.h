@@ -54,10 +54,6 @@ public:
   //! curent SidePair objects to do so if necessary.
   void determine_surface_senses();
 
-  //! Create a new sideset for all faces on the boundary of the mesh.
-  //! This is used for re-entrant particles if needed.
-  void create_boundary_sideset();
-
   // Interface methods
   MeshLibrary mesh_library() const override { return MeshLibrary::LIBMESH; }
 
