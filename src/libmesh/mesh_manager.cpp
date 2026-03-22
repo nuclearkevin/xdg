@@ -399,11 +399,11 @@ LibMeshManager::get_surface_faces(MeshID surface) const {
 
 std::vector<Vertex>
 LibMeshManager::element_vertices(MeshID element) const {
-  std::vector<Vertex> vertices;
-  auto elem = mesh()->elem_ptr(element);
-  for (unsigned int i = 0; i < elem->n_nodes(); ++i) {
-    auto node = elem->node_ref(i);
-    vertices.push_back({node(0), node(1), node(2)});
+  const auto& elem = mesh()->elem_ref(element);
+  std::vector<Vertex> vertices(elem.n_nodes());
+  for (unsigned int i = 0; i < elem.n_nodes(); ++i) {
+    const auto& node = elem.node_ref(i);
+    vertices[i] = {node(0), node(1), node(2)};
   }
   return vertices;
 }
