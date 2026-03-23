@@ -399,12 +399,12 @@ TEST_CASE("LibMesh Element ID and Index Mapping")
 
   // test mapping for non-contiguous IDs via manual modification
   {
-    // now create a new mesh manager (create explicitly so we can modify the mesh before init)
-    std::unique_ptr<LibMeshManager> mesh_manager  {std::make_unique<LibMeshManager>()};
-    mesh_manager->load_file("jezebel.exo");
+    // now create a new mesh which we modify before initializing the mesh manager.
+    std::unique_ptr<libMesh::Mesh> jezebel {std::make_unique<libMesh::Mesh>(*XDGConfig::config().libmesh_comm(), 3)};
+    jezebel->read("jezebel.exo");
 
     // tweak some of the element IDs to create gaps
-    auto* mesh = mesh_manager->mesh();
+    auto* mesh = jezebel.get();
     int next_id = 0;
     std::vector<MeshID> modified_element_ids;
     for (auto* elem : mesh->active_element_ptr_range()) {
@@ -436,8 +436,10 @@ TEST_CASE("LibMesh Element ID and Index Mapping")
     // keep libMesh from renumbering the elements when initializing the mesh
     // manager for the purposes of this test
     mesh->allow_renumbering(false);
+    mesh->prepare_for_use();
 
     // now initialize the mesh manager
+    std::unique_ptr<LibMeshManager> mesh_manager  {std::make_unique<LibMeshManager>(mesh)};
     mesh_manager->init();
     REQUIRE(mesh_manager->num_volume_elements() == 10333);
 
