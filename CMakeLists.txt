@@ -77,13 +77,23 @@ find_package(Git REQUIRED)
 set(VENDOR_PATHS
   vendor/fmt
   vendor/linalg
-  vendor/argparse
-  vendor/indicators
-  vendor/catch2
-  tests/test_files
 )
 
-if (XDG_ENABLE_GPRT)
+if(XDG_BUILD_TESTS)
+  list(APPEND VENDOR_PATHS
+    vendor/catch2
+    tests/test_files
+  )
+endif()
+
+if(XDG_BUILD_TOOLS)
+  list(APPEND VENDOR_PATHS
+    vendor/argparse
+    vendor/indicators
+  )
+endif()
+
+if(XDG_ENABLE_GPRT)
   list(APPEND VENDOR_PATHS
     vendor/GPRT
   )
@@ -105,14 +115,14 @@ if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
       endif()
     endforeach()
 
+    # Check to see if submodules exist (by checking one)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/fmt/CMakeLists.txt")
+      message(FATAL_ERROR "The git submodules were not downloaded! GIT_SUBMODULE was \
+        turned off or failed. Please update submodules and try again.")
+    endif()
   endif()
 endif()
 
-# Check to see if submodules exist (by checking one)
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/fmt/CMakeLists.txt")
-  message(FATAL_ERROR "The git submodules were not downloaded! GIT_SUBMODULE was \
-    turned off or failed. Please update submodules and try again.")
-endif()
 
 # Catch2 testing module
 if (XDG_BUILD_TESTS)
@@ -124,7 +134,6 @@ if (XDG_BUILD_TESTS)
   include(Catch)
 endif()
 
-
 # fmt
 find_package(fmt QUIET NO_SYSTEM_ENVIRONMENT_PATH)
 if (NOT fmt_FOUND)
@@ -134,12 +143,14 @@ else()
   message(STATUS "Found fmt ${fmt_VERSION} at ${fmt_DIR}")
 endif()
 
-# argparse
-add_subdirectory(vendor/argparse)
-# indicators (progress bars)
-# ensure indicators targets are exported and installed
-set(INDICATORS_INSTALL ON CACHE STRING "Ensure indicators targets are provided")
-add_subdirectory(vendor/indicators)
+if(XDG_BUILD_TOOLS)
+  # argparse
+  add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/argparse)
+  # indicators (progress bars)
+  # ensure indicators targets are exported and installed
+  set(INDICATORS_INSTALL ON CACHE STRING "Ensure indicators targets are provided")
+  add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/indicators)
+endif()
 
 # Ensure at least one mesh backend is enabled
 if (NOT XDG_ENABLE_MOAB AND NOT XDG_ENABLE_LIBMESH)
@@ -243,8 +254,6 @@ endif()
 
 add_library(xdg SHARED ${xdg_sources})
 
-target_link_libraries(xdg indicators::indicators)
-
 if(XDG_ENABLE_EMBREE)
   # pass precompile definition depending on embree version
   if (${EMBREE_VERSION} VERSION_GREATER_EQUAL 4.0.0)
@@ -297,12 +306,14 @@ if (XDG_ENABLE_GPRT)
   target_link_options(xdg INTERFACE -Wl,--unresolved-symbols=ignore-in-shared-libs)
 endif()
 
+target_link_libraries(xdg fmt::fmt)
+
 # ==========================
 # Link ray tracing libraries
 # ==========================
 
 if (XDG_ENABLE_EMBREE)
-  target_link_libraries(xdg embree fmt::fmt)
+  target_link_libraries(xdg embree)
 endif()
 
 if (XDG_ENABLE_GPRT)
