@@ -114,15 +114,17 @@ if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
           "please checkout submodule at ${VENDOR_PATH} manually and try again.")
       endif()
     endforeach()
-
-    # Check to see if submodules exist (by checking one)
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/fmt/CMakeLists.txt")
-      message(FATAL_ERROR "The git submodules were not downloaded! GIT_SUBMODULE was \
-        turned off or failed. Please update submodules and try again.")
-    endif()
   endif()
 endif()
 
+foreach(VENDOR_PATH ${VENDOR_PATHS})
+  file(GLOB _xdg_vendor_readmes "${CMAKE_CURRENT_SOURCE_DIR}/${VENDOR_PATH}/README.*")
+  if(NOT _xdg_vendor_readmes)
+    message(FATAL_ERROR
+      "The vendored dependency at ${VENDOR_PATH} is missing. "
+      "Expected a README.* file. Please update submodules and try again.")
+  endif()
+endforeach()
 
 # Catch2 testing module
 if (XDG_BUILD_TESTS)
