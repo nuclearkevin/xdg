@@ -75,10 +75,24 @@ endif()
 find_package(Git REQUIRED)
 
 set(VENDOR_PATHS
-  vendor/fmt
   vendor/indicators
   vendor/linalg
 )
+
+# attempt to find external fmt
+find_package(fmt QUIET NO_SYSTEM_ENVIRONMENT_PATH)
+if(NOT fmt_FOUND)
+  list(APPEND VENDOR_PATHS vendor/fmt)
+endif()
+
+# attempt to find external Catch2
+if (XDG_BUILD_TESTS)
+  find_package(Catch2 QUIET NO_SYSTEM_ENVIRONMENT_PATH)
+  if(NOT Catch2_FOUND)
+    list(APPEND VENDOR_PATHS vendor/catch2)
+  endif()
+endif()
+
 
 if(XDG_BUILD_TESTS)
   list(APPEND VENDOR_PATHS
@@ -128,22 +142,21 @@ endforeach()
 
 # Catch2 testing module
 if (XDG_BUILD_TESTS)
-  find_package(Catch2 QUIET NO_SYSTEM_ENVIRONMENT_PATH)
   if (NOT Catch2_FOUND)
     add_subdirectory("vendor/catch2")
   endif()
   include(CTest)
   include(Catch)
+  message(STATUS "Using Catch2 ${Catch2_VERSION} at ${Catch2_DIR}")
 endif()
 
+
 # fmt
-find_package(fmt QUIET NO_SYSTEM_ENVIRONMENT_PATH)
 if (NOT fmt_FOUND)
   set(FMT_INSTALL ON CACHE BOOL "Generate the fmt install target")
   add_subdirectory(vendor/fmt)
-else()
-  message(STATUS "Found fmt ${fmt_VERSION} at ${fmt_DIR}")
 endif()
+message(STATUS "Using fmt ${fmt_VERSION} at ${fmt_DIR}")
 
 if(XDG_BUILD_TOOLS)
   # argparse
