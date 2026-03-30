@@ -325,6 +325,9 @@ endif()
 
 target_link_libraries(xdg fmt::fmt)
 
+#TODO: refactor to only be required when tools are enabled
+target_link_libraries(xdg indicators::indicators)
+
 # ==========================
 # Link ray tracing libraries
 # ==========================
