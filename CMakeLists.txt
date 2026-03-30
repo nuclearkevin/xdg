@@ -164,8 +164,10 @@ if(XDG_BUILD_TOOLS)
   # indicators (progress bars)
   # ensure indicators targets are exported and installed
   set(INDICATORS_INSTALL ON CACHE STRING "Ensure indicators targets are provided")
-  add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/indicators)
 endif()
+
+# TODO: refacgtor so this is only needed when tools are enabled
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/indicators)
 
 # Ensure at least one mesh backend is enabled
 if (NOT XDG_ENABLE_MOAB AND NOT XDG_ENABLE_LIBMESH)
