@@ -76,6 +76,7 @@ find_package(Git REQUIRED)
 
 set(VENDOR_PATHS
   vendor/fmt
+  vendor/indicators
   vendor/linalg
 )
 
@@ -89,7 +90,6 @@ endif()
 if(XDG_BUILD_TOOLS)
   list(APPEND VENDOR_PATHS
     vendor/argparse
-    vendor/indicators
   )
 endif()
 
