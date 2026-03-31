@@ -161,12 +161,22 @@ void LibMeshManager::parse_metadata() {
   // surface metadata
   auto boundary_info = mesh()->get_boundary_info();
   auto sideset_name_map = boundary_info.get_sideset_name_map();
-  for (auto surface : surfaces_) {
-    if (sideset_name_map.find(surface) != sideset_name_map.end()) {
-      std::string sideset_name = sideset_name_map[surface];
-      remove_substring(sideset_name, "boundary:");
-      surface_metadata_[{surface, PropertyType::BOUNDARY_CONDITION}] = {
-          PropertyType::BOUNDARY_CONDITION, sideset_name};
+  for (const auto& [sideset_id, surfaces] : sideset_surface_map_) {
+    if (sideset_name_map.find(sideset_id) == sideset_name_map.end()) {
+      continue;
+    }
+
+    std::string sideset_name = sideset_name_map[sideset_id];
+    remove_substring(sideset_name, "boundary:");
+
+    for (auto surface : surfaces) {
+      const auto key = std::make_pair(surface, PropertyType::BOUNDARY_CONDITION);
+      if (surface_metadata_.count(key) != 0 &&
+          surface_metadata_.at(key).value != sideset_name) {
+        fatal_error("Conflicting boundary metadata assigned to surface {}", surface);
+      }
+
+      surface_metadata_[key] = {PropertyType::BOUNDARY_CONDITION, sideset_name};
     }
   }
 
@@ -180,26 +190,6 @@ void LibMeshManager::parse_metadata() {
       volume_metadata_[{volume, PropertyType::MATERIAL}] = {PropertyType::MATERIAL, subdomain_name};
     }
   }
-}
-
-template<typename T>
-bool intersects_set(const std::set<T>& set1, const std::set<T>& set2) {
-  for (const auto& elem : set2) {
-    if (set1.count(elem) > 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
-template<typename T>
-bool contains_set(const std::set<T>& set1, const std::set<T>& set2) {
-  for (const auto& elem : set2) {
-    if (set1.count(elem) == 0) {
-      return false;
-    }
-  }
-  return true;
 }
 
 void LibMeshManager::map_id_spaces() {
@@ -253,78 +243,143 @@ void LibMeshManager::discover_surface_elements() {
 }
 
 void LibMeshManager::merge_sidesets_into_interfaces() {
-  // replace implicit interface surfaces with sideset surfaces where needed
-  // this is done by identifying the subdomain IDs for each sideset and
-  // replacing the interface elements with the sideset elements.
-  // Partial replacement is allowed. If any elements remain in the
-  // interface sets after this operation, they will be treated as interfaces
-  // between subdomains
+  // validate that each sideset face is already represented by one of the
+  // discovered interface sets. Same-block internal faces may appear in a
+  // sideset but are ignored here.
+  using InterfacePair = std::pair<MeshID, MeshID>;
+  auto resolve_interface_pair = [this](const InterfacePair& pair, InterfacePair& resolved_pair) {
+    if (subdomain_interface_map_.count(pair) != 0) {
+      resolved_pair = pair;
+      return true;
+    }
+
+    InterfacePair reversed_pair {pair.second, pair.first};
+    if (subdomain_interface_map_.count(reversed_pair) != 0) {
+      resolved_pair = reversed_pair;
+      return true;
+    }
+
+    return false;
+  };
+
+  sideset_interface_map_.clear();
+  sideset_interface_face_map_.clear();
   for (const auto& [sideset_id, sideset_elems] : sideset_face_map_) {
-    if (sideset_elems.size() == 0) continue;
+    if (sideset_elems.empty()) continue;
 
-    // determine the subdomain IDs for the sideset
-    // (possible that the face is the boundary of the mesh)
-    std::pair<MeshID, MeshID> subdomain_pair {ID_NONE, ID_NONE};
-    auto elem_pair = sidepair(sideset_elems.at(0));
-    subdomain_pair.first = elem_pair.first()->subdomain_id();
-    auto neighbor = elem_pair.second();
-    // set to ID_NONE if the neighbor is null
-    subdomain_pair.second = neighbor ? neighbor->subdomain_id() : ID_NONE;
+    size_t missing_face_count = 0;
+    for (const auto& face_id : sideset_elems) {
+      const auto& face = sidepair(face_id);
+      if (face.second() != nullptr &&
+          face.first()->subdomain_id() == face.second()->subdomain_id()) {
+        continue;
+      }
 
-    // if this is a defined sideset, it should match one of the pairs in the
-    // interface map. If it doesn't based on the current ordering of subdomains,
-    // swap the order
-    if(subdomain_interface_map_.count(subdomain_pair) == 0) {
-      subdomain_pair = {subdomain_pair.second, subdomain_pair.first};
+      InterfacePair face_pair {
+          face.first()->subdomain_id(),
+          face.second() ? face.second()->subdomain_id() : ID_NONE};
+      InterfacePair resolved_pair;
+      if (!resolve_interface_pair(face_pair, resolved_pair)) {
+        missing_face_count++;
+        continue;
+      }
+
+      if (subdomain_interface_map_.at(resolved_pair).count(face_id) == 0) {
+        missing_face_count++;
+        continue;
+      }
+
+      sideset_interface_map_[sideset_id].insert(resolved_pair);
+      sideset_interface_face_map_[sideset_id][resolved_pair].push_back(face_id);
     }
 
-    // if the sideset pair doesn't exist in the interface map at all,
-    // then we have a problem or a poorly defined (or inconsistent) sideset
-    if (subdomain_interface_map_.count(subdomain_pair) == 0) {
-      fatal_error("No interface elements found for sideset");
-    }
-
-    // replace the interface elements with the sideset elements
-    std::set<MeshID>& interface_set = subdomain_interface_map_[subdomain_pair];
-
-    // remove the explicit sideset elements from the discovered
-    // interface elements that match this subdomain pair
-    for (const auto& elem : sideset_elems) {
-      interface_set.erase(elem);
+    if (missing_face_count > 0) {
+      fatal_error(
+          "Sideset {} has {} face(s) that are not represented by discovered interface sets",
+          sideset_id,
+          missing_face_count);
     }
   }
 }
 
 void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
-  // start by creating surfaces for each sideset. These have explicit IDs
-  // and may be used to define boundary conditions.
-  for (const auto& [sideset_id, sideset_elems] : sideset_face_map_) {
-    surfaces().push_back(sideset_id);
-    for (const auto& elem : sideset_elems) {
-      surface_map_[sideset_id].push_back(elem);
+  using InterfacePair = std::pair<MeshID, MeshID>;
+  surfaces().clear();
+  surface_map_.clear();
+  surface_senses_.clear();
+  sideset_surface_map_.clear();
+
+  std::set<MeshID> reserved_surface_ids;
+  for (const auto& [sideset_id, _] : sideset_face_map_) {
+    reserved_surface_ids.insert(sideset_id);
+  }
+
+  std::set<MeshID> used_surface_ids;
+  MeshID next_surface_id = 1;
+  auto next_available_surface_id = [&]() {
+    while (reserved_surface_ids.count(next_surface_id) != 0 ||
+           used_surface_ids.count(next_surface_id) != 0) {
+      next_surface_id++;
+    }
+    used_surface_ids.insert(next_surface_id);
+    return next_surface_id++;
+  };
+
+  std::unordered_map<InterfacePair, std::set<MeshID>, MeshIDPairHash> covered_interface_faces;
+
+  std::vector<MeshID> sideset_ids;
+  sideset_ids.reserve(sideset_interface_face_map_.size());
+  for (const auto& [sideset_id, _] : sideset_interface_face_map_) {
+    sideset_ids.push_back(sideset_id);
+  }
+  std::sort(sideset_ids.begin(), sideset_ids.end());
+
+  for (auto sideset_id : sideset_ids) {
+    const auto& interface_face_groups = sideset_interface_face_map_.at(sideset_id);
+    bool reuse_sideset_id = interface_face_groups.size() == 1;
+    for (const auto& [pair, faces] : interface_face_groups) {
+      MeshID surface_id = reuse_sideset_id ? sideset_id : next_available_surface_id();
+      if (reuse_sideset_id) {
+        used_surface_ids.insert(surface_id);
+      }
+
+      surface_senses_[surface_id] = pair;
+      for (const auto& face : faces) {
+        surface_map_[surface_id].push_back(face);
+        covered_interface_faces[pair].insert(face);
+      }
+      surfaces().push_back(surface_id);
+      sideset_surface_map_[sideset_id].push_back(surface_id);
     }
   }
 
-  MeshID next_surface_id = surfaces().size() == 0 ? 1 : *std::max_element(surfaces().begin(), surfaces().end()) + 1;
+  std::vector<InterfacePair> interface_pairs;
+  interface_pairs.reserve(subdomain_interface_map_.size());
+  for (const auto& [pair, _] : subdomain_interface_map_) {
+    interface_pairs.push_back(pair);
+  }
+  std::sort(interface_pairs.begin(), interface_pairs.end());
 
-  std::set<std::pair<MeshID, MeshID>> visited_interfaces;
-  for (auto &[pair, elements] : subdomain_interface_map_) {
+  for (const auto& pair : interface_pairs) {
+    std::vector<MeshID> remaining_faces;
+    const auto& elements = subdomain_interface_map_.at(pair);
+    remaining_faces.reserve(elements.size());
+    for (const auto& face : elements) {
+      if (covered_interface_faces[pair].count(face) == 0) {
+        remaining_faces.push_back(face);
+      }
+    }
 
-    if (elements.size() == 0) {
-      std::cout << "No elements found for interface between " << pair.first << " and " << pair.second << std::endl;
+    if (remaining_faces.empty()) {
       continue;
     }
-    // if we've already visited this interface, but going the other direction,
-    // skip it
-    if (visited_interfaces.count({pair.second, pair.first}) > 0)
-      continue;
-    visited_interfaces.insert(pair);
 
-    surface_senses_[next_surface_id] = pair;
-    for (const auto &elem : elements) {
-      surface_map_[next_surface_id].push_back(elem);
+    MeshID surface_id = next_available_surface_id();
+    surface_senses_[surface_id] = pair;
+    for (const auto& face : remaining_faces) {
+      surface_map_[surface_id].push_back(face);
     }
-    surfaces().push_back(next_surface_id++);
+    surfaces().push_back(surface_id);
   }
 }
 

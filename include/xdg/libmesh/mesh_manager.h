@@ -1,6 +1,7 @@
 #ifndef _XDG_LIBMESH_MESH_MANAGER
 #define _XDG_LIBMESH_MESH_MANAGER
 
+#include <map>
 #include <memory>
 
 #include "xdg/constants.h"
@@ -31,20 +32,16 @@ public:
   //! \brief Map ID spaces into indices for ordered access by downstream applications
   void map_id_spaces();
 
-  //! Discover element faces on sudbomain interfaces,
-  //! create surfaces and topology accordingly,
-  //! and assign transmission boundary conditions for these interfacdes.
-  //! If pre-defined sidesets exist, they will replace discovered interfaces
-  //! between subdomains. Full replacement of subdomain interfaces is required.
+  //! Discover element faces on subdomain interfaces.
   void discover_surface_elements();
 
-  //! If explicit sidesets exist, the elements in these sidesets should
-  //! replace the elements in the discovered subdomain interfaces.
+  //! Validate that explicit sideset faces are represented by discovered
+  //! interface sets and record the corresponding interface associations.
   void merge_sidesets_into_interfaces();
 
-  //! For each user-defined sideset, create a surface and assign the associated
-  //! elements to the surface. Also define new surfaces for any discovered interface
-  //! sidesets if the sets are not empty after merging.
+  //! Create surfaces for explicit sidesets, splitting them by discovered
+  //! interface set when needed, and then create any remaining implicit
+  //! interface surfaces that were not covered by sidesets.
   void create_surfaces_from_sidesets_and_interfaces();
 
   //! The "natural" orientation of triangle normals is dependent on the element
@@ -316,6 +313,19 @@ public:
   //! set of element faces that make up the interface
   std::unordered_map<std::pair<MeshID, MeshID>, std::set<MeshID>, MeshIDPairHash>
   subdomain_interface_map_;
+
+  //! Mapping of explicit sidesets to the discovered interface pairs that contain
+  //! their valid faces. Same-block sideset faces are ignored.
+  std::unordered_map<MeshID, std::set<std::pair<MeshID, MeshID>>> sideset_interface_map_;
+
+  //! Mapping of explicit sidesets to the valid faces they contribute to each
+  //! discovered interface pair.
+  std::unordered_map<MeshID, std::map<std::pair<MeshID, MeshID>, std::vector<MeshID>>>
+  sideset_interface_face_map_;
+
+  //! Mapping of explicit sidesets to the created surfaces that should inherit
+  //! their metadata.
+  std::unordered_map<MeshID, std::vector<MeshID>> sideset_surface_map_;
 
   //! Mapping of surface IDs to the set of element faces that make up the surface,
   //! with the element face represented by assigned XDG IDs
