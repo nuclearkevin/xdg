@@ -93,10 +93,8 @@ if (XDG_BUILD_TESTS)
   endif()
 endif()
 
-
 if(XDG_BUILD_TESTS)
   list(APPEND VENDOR_PATHS
-    vendor/catch2
     tests/test_files
   )
 endif()
