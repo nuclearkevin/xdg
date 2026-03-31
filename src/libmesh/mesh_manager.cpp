@@ -264,6 +264,12 @@ void LibMeshManager::merge_sidesets_into_interfaces() {
 
   sideset_interface_map_.clear();
   sideset_interface_face_map_.clear();
+  // loop over discovered interface sets of faces and validate that each face in
+  // the explicit sidesets is represented in one of the discovered interface
+  // sets. As we go, we will also build a mapping of the explicit sidesets to
+  // the discovered interfaces that they overlap with and the faces they
+  // contribute to each interface for use in surface creation and metadata
+  // assignment in subsequent steps
   for (const auto& [sideset_id, sideset_elems] : sideset_face_map_) {
     if (sideset_elems.empty()) continue;
 
@@ -275,10 +281,25 @@ void LibMeshManager::merge_sidesets_into_interfaces() {
         continue;
       }
 
+      // build interface pair for this face using the subdomain IDs of the elements on either side.
+      // If there is no neighbor element, use ID_NONE for the second subdomain ID.
+      // Then resolve this pair against the discovered interface pairs to determine which interface set this face belongs to.
       InterfacePair face_pair {
           face.first()->subdomain_id(),
           face.second() ? face.second()->subdomain_id() : ID_NONE};
+
+      // If for some reason the face is internal to a subdomain, continue and do
+      // not associate it with an interface pair. This may occur in cases where
+      // the mesh has internal faces that are marked as sidesets, which is not
+      // ideal but we will allow it to pass through without error for now since
+      // it does not impact the mesh-based topology of the geometry.
+      if (face_pair.first == face_pair.second) {
+        continue;
+      }
+
       InterfacePair resolved_pair;
+      // If the interface pair cannot be located in a disocvered interface set,
+      // then this face is not properly represented by the mesh-based topology and the missing face count is incremented.
       if (!resolve_interface_pair(face_pair, resolved_pair)) {
         missing_face_count++;
         continue;
@@ -289,10 +310,17 @@ void LibMeshManager::merge_sidesets_into_interfaces() {
         continue;
       }
 
+      // If this face is properly represented by a discovered interface, then we
+      // will record the association between the sideset and the interface pair
+      // it belongs to, as well as the face's membership in that interface pair
+      // for use in surface creation and metadata assignment in subsequent steps
       sideset_interface_map_[sideset_id].insert(resolved_pair);
       sideset_interface_face_map_[sideset_id][resolved_pair].push_back(face_id);
     }
 
+    // If any of the faces in explicit sidesets are not represented by the
+    // discovered mesh-based topology, the number of missing faces is reported
+    // and an error is raised.
     if (missing_face_count > 0) {
       fatal_error(
           "Sideset {} has {} face(s) that are not represented by discovered interface sets",
@@ -303,17 +331,37 @@ void LibMeshManager::merge_sidesets_into_interfaces() {
 }
 
 void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
+  // method overview:
+  // 1. loop over explicit sidesets and create surfaces for each associated
+  //    interface pair, assigning metadata from the sideset to the surface as we
+  //    go. If an explicit sideset is only associated with one interface pair,
+  //    we will reuse the sideset ID for the surface since there is no risk of
+  //    ID conflicts in this case, otherwise we will assign a new surface ID.
+  // 2. loop over discovered interface pairs and create surfaces for any pairs
+  //    that are not fully covered by explicit sidesets, assigning any remaining
+  //    metadata from associated sidesets to the surface  as we go. Since these
+  //    surfaces are not associated with explicit sidesets, we will assign new
+  //    surface IDs to all of these surfaces to avoid any potential ID
+  //    conflicts.
   using InterfacePair = std::pair<MeshID, MeshID>;
   surfaces().clear();
   surface_map_.clear();
   surface_senses_.clear();
   sideset_surface_map_.clear();
 
+  // to ensure that we do not reuse surface IDs, we will keep track of the
+  // surface IDs that have already been assigned to explicit sidesets and the
+  // interface pairs they are associated with
   std::set<MeshID> reserved_surface_ids;
   for (const auto& [sideset_id, _] : sideset_face_map_) {
     reserved_surface_ids.insert(sideset_id);
   }
 
+  // we will also keep track of the surface IDs that have been assigned to
+  // surfaces created for explicit sidesets and the interface pairs they are
+  // associated with to ensure that we do not reuse these IDs when creating
+  // surfaces for the remaining implicit interfaces that are not covered by
+  // explicit sidesets
   std::set<MeshID> used_surface_ids;
   MeshID next_surface_id = 1;
   auto next_available_surface_id = [&]() {
@@ -327,6 +375,11 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
 
   std::unordered_map<InterfacePair, std::set<MeshID>, MeshIDPairHash> covered_interface_faces;
 
+  // loop over explicit sidesets and create surfaces for each associated
+  // interface pair, assigning metadata from the sideset to the surface as we
+  // go. If an explicit sideset is only associated with one interface pair, we
+  // will reuse the sideset ID for the surface since there is no risk of ID
+  // conflicts in this case, otherwise we will assign a new surface ID.
   std::vector<MeshID> sideset_ids;
   sideset_ids.reserve(sideset_interface_face_map_.size());
   for (const auto& [sideset_id, _] : sideset_interface_face_map_) {
@@ -334,9 +387,17 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
   }
   std::sort(sideset_ids.begin(), sideset_ids.end());
 
+  // here we loop over all explicit sidesets in sorted order to ensure that we
+  // assign surface IDs in a deterministic way
   for (auto sideset_id : sideset_ids) {
     const auto& interface_face_groups = sideset_interface_face_map_.at(sideset_id);
     bool reuse_sideset_id = interface_face_groups.size() == 1;
+    // for each interface pair associated with this explicit sideset, we will
+    // create a surface and assign metadata from the sideset to the surface as
+    // we go. This is where explicit sidesets may be split into multiple
+    // surfaces if they are associated with multiple interface pairs, so we need
+    // to loop over each interface pair associated with the sideset to create
+    // surfaces for each pair
     for (const auto& [pair, faces] : interface_face_groups) {
       MeshID surface_id = reuse_sideset_id ? sideset_id : next_available_surface_id();
       if (reuse_sideset_id) {
@@ -349,10 +410,16 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
         covered_interface_faces[pair].insert(face);
       }
       surfaces().push_back(surface_id);
+      // update mapping of explicit sidesets to surfaces. This is important for
+      // propagating metadata on explicit sidesets to surfaces in the case that
+      // a single sideset spans multiple subdomain interfaces.
       sideset_surface_map_[sideset_id].push_back(surface_id);
     }
   }
 
+  // now that explicit sidesets have been processed, we loop over remaining
+  // discovered subdomain interfaces to complete the topological definition of
+  // the mesh
   std::vector<InterfacePair> interface_pairs;
   interface_pairs.reserve(subdomain_interface_map_.size());
   for (const auto& [pair, _] : subdomain_interface_map_) {
