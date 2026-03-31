@@ -37,7 +37,7 @@ public:
 
   //! Validate that explicit sideset faces are represented by discovered
   //! interface sets and record the corresponding interface associations.
-  void merge_sidesets_into_interfaces();
+  void map_sidesets_to_discovered_interfaces();
 
   //! Create surfaces for explicit sidesets, splitting them by discovered
   //! interface set when needed, and then create any remaining implicit

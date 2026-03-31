@@ -61,8 +61,8 @@ void LibMeshManager::init() {
   // subdomains/volumes)
   discover_surface_elements();
 
-  // merge sidesets into interfaces where possible
-  merge_sidesets_into_interfaces();
+  // map sidesets to discovered interfaces where possible
+  map_sidesets_to_discovered_interfaces();
 
   // create surfaces from sidesets and interfaces
   create_surfaces_from_sidesets_and_interfaces();
@@ -242,7 +242,7 @@ void LibMeshManager::discover_surface_elements() {
   volume_element_id_map_ = IDBlockMapping<MeshID>(volume_element_ids);
 }
 
-void LibMeshManager::merge_sidesets_into_interfaces() {
+void LibMeshManager::map_sidesets_to_discovered_interfaces() {
   // validate that each sideset face is already represented by one of the
   // discovered interface sets. Same-block internal faces may appear in a
   // sideset but are ignored here.
