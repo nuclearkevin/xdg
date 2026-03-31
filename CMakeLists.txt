@@ -166,7 +166,7 @@ if(XDG_BUILD_TOOLS)
   set(INDICATORS_INSTALL ON CACHE STRING "Ensure indicators targets are provided")
 endif()
 
-# TODO: refacgtor so this is only needed when tools are enabled
+# TODO: refactor so this is only needed when tools are enabled
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/indicators)
 
 # Ensure at least one mesh backend is enabled
