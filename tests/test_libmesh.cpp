@@ -479,3 +479,21 @@ TEST_CASE("LibMesh Element ID and Index Mapping")
   }
 }
 
+TEST_CASE("Multiblock sidesets")
+{
+  std::shared_ptr<XDG> xdg = XDG::create(MeshLibrary::LIBMESH);
+  REQUIRE(xdg->mesh_manager()->mesh_library() == MeshLibrary::LIBMESH);
+  const auto& mesh_manager = xdg->mesh_manager();
+  mesh_manager->load_file("cube-w-multiblock-sideset.exo");
+  mesh_manager->init();
+  mesh_manager->parse_metadata();
+
+  xdg->prepare_raytracer();
+
+  MeshID volume = 1;
+  Position start {0.0, 0.0, 0.0};
+  Position end {15.0, 20.0, 3.0};
+  auto tracks = xdg->segments(volume, start, end);
+
+  assert(tracks.size() > 0);
+}
