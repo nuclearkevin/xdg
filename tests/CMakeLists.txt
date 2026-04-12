@@ -58,6 +58,7 @@ cube.h5m
 cube-mesh-no-geom.h5m
 cube-mesh-no-geom.exo
 cube-w-multiblock-sideset.exo
+cube-w-multiblock-sideset.h5m
 no_overlap.h5m
 overlap.h5m
 overlap-edge.h5m
