@@ -31,11 +31,11 @@ args.add_argument("-m", "--mfp")
     .help("Mean free path of the particles").scan<'g', double>();
 
 args.add_argument("-n", "--n-particles")
-    .default_value(100)
+    .default_value(100u)
     .help("Number of particles to simulate").scan<'u', uint32_t>();
 
 args.add_argument("-e", "--max-events")
-    .default_value(1000)
+    .default_value(1000u)
     .help("Maximum number of events per particle").scan<'u', uint32_t>();
 
 args.add_argument("-g", "--ipc-graveyard")
