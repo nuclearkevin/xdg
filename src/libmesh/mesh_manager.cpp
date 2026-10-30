@@ -8,6 +8,8 @@
 
 #include "libmesh/boundary_info.h"
 #include "libmesh/elem.h"
+#include "libmesh/cell_tet4.h"
+#include "libmesh/cell_prism6.h"
 #include "libmesh/cell_hex8.h"
 #include "libmesh/mesh_base.h"
 #include "libmesh/mesh_tools.h"
@@ -341,6 +343,7 @@ void LibMeshManager::discover_surface_elements() {
   }
 }
 
+// TODO: need to break up surfaces by face type (TRI3 / QUAD4) for PRISM6 elements.
 void LibMeshManager::map_sidesets_to_discovered_interfaces() {
   // validate that each sideset face is already represented by one of the
   // discovered interface sets. Same-block internal faces may appear in a
