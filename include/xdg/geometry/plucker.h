@@ -209,6 +209,30 @@ inline bool plucker_line_intersects_triangle(dp::vec3 triangle[3],
            plucker_coord2 == 0.0);
 }
 
+//! \brief Determine
+template <typename T>
+bool crosses_boundary_triangle(const dp::vec3 & point, const dp::vec3 & centroid, const dp::vec3 & direction, const T & verts, int i0, int i1, int i2) {
+  std::array<dp::vec3, 3> triangle {verts[i0], verts[i1], verts[i2]};
+
+  Direction normal = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
+  if (normal.dot(centroid - triangle[0]) > 0.0) {
+    normal = -normal;
+  }
+
+  const double point_side = normal.dot(point - triangle[0]);
+  const double centroid_side = normal.dot(centroid - triangle[0]);
+
+  if (point_side <= dp::DBL_ZERO_TOL || centroid_side >= -dp::DBL_ZERO_TOL) {
+    return false;
+  }
+
+  if (!plucker_line_intersects_triangle(triangle.data(), point, direction)) {
+    return false;
+  }
+
+  return true;
+};
+
 } // namespace xdg
 
 #endif // include guard

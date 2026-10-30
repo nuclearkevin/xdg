@@ -135,6 +135,7 @@ enum class VolumeElementType {
   UNSUPPORTED = -1,
   TET = 0,
   HEX = 1,
+  PRISM = 2
 };
 
 static const std::map<SurfaceFaceType, std::string> SURFACE_FACE_TYPE_TO_STR =
@@ -150,6 +151,7 @@ static const std::map<VolumeElementType, std::string> VOLUME_ELEMENT_TYPE_TO_STR
   {VolumeElementType::UNKNOWN, "UNKNOWN"},
   {VolumeElementType::UNSUPPORTED, "UNSUPPORTED"},
   {VolumeElementType::TET, "TET"},
+  {VolumeElementType::PRISM, "PRISM"},
   {VolumeElementType::HEX, "HEX"}
 };
 

@@ -29,6 +29,14 @@ bool canonical_diagonal(const T& verts) {
   return lower(a_max, b_max);
 }
 
+template<typename T>
+bool select_diagonal(const T& verts,
+                     const std::array<int, 4>& face)
+{
+  std::array<Vertex, 4> face_verts = {verts[face[0]], verts[face[1]], verts[face[2]], verts[face[3]]};
+  return canonical_diagonal(face_verts);
+}
+
 } // namespace xdg
 
 #endif // XDG_GEOMETRY_TRIANGLE_INTERSECT_H
