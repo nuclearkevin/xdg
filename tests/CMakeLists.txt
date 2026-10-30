@@ -101,6 +101,7 @@ jezebel-quads.exo
 jezebel-quads.h5m
 pincell.h5m
 pincell-implicit.exo
+prism_mesh.exo
 small-tet-mesh.h5m
 small-tet-mesh.exo
 single-tet.h5m
