@@ -343,7 +343,6 @@ void LibMeshManager::discover_surface_elements() {
   }
 }
 
-// TODO: need to break up surfaces by face type (TRI3 / QUAD4) for PRISM6 elements.
 void LibMeshManager::map_sidesets_to_discovered_interfaces() {
   // validate that each sideset face is already represented by one of the
   // discovered interface sets. Same-block internal faces may appear in a
@@ -432,6 +431,7 @@ void LibMeshManager::map_sidesets_to_discovered_interfaces() {
   }
 }
 
+// TODO: need to break up surfaces by face type (TRI3 / QUAD4) for PRISM6 elements.
 void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
   // method overview:
   // 1. loop over explicit sidesets and create surfaces for each associated
@@ -477,6 +477,18 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
     return next_surface_id++;
   };
 
+  // a helper functor to determine the face types associated with a given surface.
+  auto get_unique_face_types = [&](const std::vector<MeshID> & faces) {
+    std::vector<SurfaceFaceType> ft;
+    for (auto face : faces) {
+      if (std::find(ft.begin(), ft.end(), this->face_type(face)) == ft.end()) {
+        ft.push_back(this->face_type(face));
+      }
+    }
+    std::sort(ft.begin(), ft.end());
+    return ft;
+  };
+
   std::unordered_map<InterfacePair, std::set<MeshID>, MeshIDPairHash> covered_interface_faces;
 
   // loop over explicit sidesets and create surfaces for each associated
@@ -488,7 +500,7 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
   sorted_sideset_ids.reserve(sideset_interface_face_map_.size());
   for (const auto& [sideset_id, _] : sideset_interface_face_map_) {
     sorted_sideset_ids.push_back(sideset_id);
-}
+  }
   std::sort(sorted_sideset_ids.begin(), sorted_sideset_ids.end());
 
   // here we loop over all explicit sidesets in sorted order to ensure that we
@@ -503,21 +515,35 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
     // to loop over each interface pair associated with the sideset to create
     // surfaces for each pair
     for (const auto& [pair, faces] : interface_face_groups) {
-      MeshID surface_id = reuse_sideset_id ? sideset_id : next_available_surface_id();
+      std::vector<MeshID> surface_ids {reuse_sideset_id ? sideset_id : next_available_surface_id()};
       if (reuse_sideset_id) {
-        used_surface_ids.insert(surface_id);
+        used_surface_ids.insert(surface_ids.back());
+      }
+      // Find the unique face types.
+      auto unique_face_types = get_unique_face_types(faces);
+      // More than one face type in this surface. Need to break it up logically.
+      for (unsigned int ns = 1; ns < unique_face_types.size(); ++ns) {
+        surface_ids.push_back(next_available_surface_id());
       }
 
-      surface_senses_[surface_id] = pair;
-      for (const auto& face : faces) {
-        surface_map_[surface_id].push_back(face);
-        covered_interface_faces[pair].insert(face);
+      for (unsigned int i = 0; i < surface_ids.size(); ++i) {
+        const SurfaceFaceType sft = unique_face_types[i];
+        const MeshID surface_id = surface_ids[i];
+
+        surface_senses_[surface_id] = pair;
+        for (const auto& face : faces) {
+          if (this->face_type(face) == sft) {
+            surface_map_[surface_id].push_back(face);
+            covered_interface_faces[pair].insert(face);
+          }
+        }
+
+        surfaces().push_back(surface_id);
+        // update mapping of explicit sidesets to surfaces. This is important for
+        // propagating metadata on explicit sidesets to surfaces in the case that
+        // a single sideset spans multiple subdomain interfaces.
+        sideset_surface_map_[sideset_id].push_back(surface_id);
       }
-      surfaces().push_back(surface_id);
-      // update mapping of explicit sidesets to surfaces. This is important for
-      // propagating metadata on explicit sidesets to surfaces in the case that
-      // a single sideset spans multiple subdomain interfaces.
-      sideset_surface_map_[sideset_id].push_back(surface_id);
     }
   }
 
@@ -545,12 +571,24 @@ void LibMeshManager::create_surfaces_from_sidesets_and_interfaces() {
       continue;
     }
 
-    MeshID surface_id = next_available_surface_id();
-    surface_senses_[surface_id] = pair;
-    for (const auto& face : remaining_faces) {
-      surface_map_[surface_id].push_back(face);
+    auto unique_face_types = get_unique_face_types(remaining_faces);
+    std::vector<MeshID> surface_ids;
+    for (auto unique_face : unique_face_types) {
+      surface_ids.push_back(next_available_surface_id());
     }
-    surfaces().push_back(surface_id);
+
+    for (unsigned int i = 0; i < surface_ids.size(); ++i) {
+      const SurfaceFaceType sft = unique_face_types[i];
+      const MeshID surface_id = surface_ids[i];
+
+      for (const auto& face : remaining_faces) {
+        if (this->face_type(face) == sft) {
+          surface_map_[surface_id].push_back(face);
+        }
+      }
+      surface_senses_[surface_id] = pair;
+      surfaces().push_back(surface_id);
+    }
   }
 }
 
