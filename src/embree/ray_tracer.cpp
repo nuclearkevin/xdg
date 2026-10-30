@@ -5,6 +5,7 @@
 #include "xdg/bounding_functions.h"
 #include "xdg/ray.h"
 #include "xdg/tetrahedron_contain.h"
+#include "xdg/prism_contain.h"
 #include "xdg/hexahedron_contain.h"
 
 
@@ -190,6 +191,10 @@ EmbreeRayTracer::create_element_tree(const std::shared_ptr<MeshManager>& mesh_ma
     case VolumeElementType::TET:
       rtcSetGeometryIntersectFunction(element_geometry, (RTCIntersectFunctionN)&TetrahedronIntersectionFunc);
       rtcSetGeometryOccludedFunction(element_geometry, (RTCOccludedFunctionN)&TetrahedronOcclusionFunc);
+      break;
+    case VolumeElementType::PRISM:
+      rtcSetGeometryIntersectFunction(element_geometry, (RTCIntersectFunctionN)&PrismIntersectionFunc);
+      rtcSetGeometryOccludedFunction(element_geometry, (RTCOccludedFunctionN)&PrismOcclusionFunc);
       break;
     case VolumeElementType::HEX:
       rtcSetGeometryIntersectFunction(element_geometry, (RTCIntersectFunctionN)&HexahedronIntersectionFunc);
