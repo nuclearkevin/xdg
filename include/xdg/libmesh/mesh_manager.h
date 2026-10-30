@@ -14,6 +14,7 @@
 #include "libmesh/libmesh.h"
 #include "libmesh/elem.h"
 #include "libmesh/cell_tet4.h"
+#include "libmesh/cell_prism6.h"
 #include "libmesh/cell_hex8.h"
 #include "libmesh/mesh.h"
 
@@ -46,6 +47,8 @@ public:
       return VolumeElementType::TET;
     case libMesh::HEX8:
       return VolumeElementType::HEX;
+    case libMesh::PRISM6:
+      return VolumeElementType::PRISM;
     default:
       return VolumeElementType::UNSUPPORTED;
     }
@@ -299,6 +302,23 @@ struct LibMeshElementFaceAccessor : public ElementFaceAccessor {
         }
         break;
       }
+      case libMesh::PRISM6: {
+        if (i == 0 || i == 5) {
+          // TRI3 faces
+          coords.reserve(3);
+          for (int j = 0; j < 3; j++) {
+            const auto node_ptr = elem_ptr_->node_ptr(libMesh::Prism6::side_nodes_map[i][j]);
+            coords.push_back({(*node_ptr)(0), (*node_ptr)(1), (*node_ptr)(2)});
+          }
+        } else {
+          // QUAD4 faces
+          coords.reserve(4);
+          for (int j = 0; j < 4; j++) {
+            const auto node_ptr = elem_ptr_->node_ptr(libMesh::Prism6::side_nodes_map[i][j]);
+            coords.push_back({(*node_ptr)(0), (*node_ptr)(1), (*node_ptr)(2)});
+          }
+        }
+      }
       case libMesh::HEX8: {
         coords.reserve(4);
         for (int j = 0; j < 4; j++) {
@@ -311,7 +331,7 @@ struct LibMeshElementFaceAccessor : public ElementFaceAccessor {
         fatal_error("Unsupported element type {} in LibMeshElementFaceAccessor",
                     static_cast<int>(elem_ptr_->type()));
     }
-    return coords;
+    return std::move(coords);
   }
 
   int num_faces() const override {
