@@ -602,6 +602,193 @@ struct MockHexElementFaceAccessor : public ElementFaceAccessor {
   std::array<Vertex, 8> element_vertices_;
 };
 
+// A lightweight two-element prism/wedge mesh.
+class MockedPrismMesh : public MeshManager {
+public:
+  MockedPrismMesh() {
+
+  }
+
+  void load_file(const std::string& /*file_name*/) override {}
+  void init() override {}
+
+  int num_volumes() const override { return 1; }
+  int num_surfaces() const override { return static_cast<int>(surfaces_.size()); }
+  int num_ents_of_dimension(int dim) const override {
+    if (dim == 2) return num_surfaces();
+    if (dim == 3) return num_volumes();
+    return 0;
+  }
+
+  int num_volume_elements(MeshID /*volume*/) const override {
+    // TODO
+  }
+  int num_volume_faces(MeshID volume) const override {
+    int count = 0;
+    for (auto surf : get_volume_surfaces(volume)) {
+      count += num_surface_faces(surf);
+    }
+    return count;
+  }
+  int num_surface_faces(MeshID surface) const override {
+    // TODO
+  }
+  int num_vertices() const override {
+    // TODO
+  }
+
+  std::vector<MeshID> get_volume_elements(MeshID /*volume*/) const override { return {0, 1}; }
+
+  std::vector<MeshID> get_surface_faces(MeshID surface) const override {
+    // TODO
+  }
+
+  std::vector<Vertex> element_vertices(MeshID element) const override {
+    // TODO
+  }
+
+  std::vector<MeshID> face_vertices(MeshID face) const override {
+    // TODO
+  }
+
+  std::vector<MeshID> face_connectivity(MeshID face) const override {
+    // TODO
+  }
+
+  SurfaceFaceType get_surface_face_type(MeshID surface) const override {
+    // TODO
+  }
+
+  SurfaceFaceType face_type(MeshID face) const override {
+    // TODO
+  }
+
+  VolumeElementType get_volume_element_type(MeshID volume) const override {
+    // TODO
+  }
+
+  VolumeElementType element_type(MeshID element) const override {
+    // TODO
+  }
+
+  MeshID adjacent_element(MeshID element, int face) const override {
+    // TODO
+  }
+
+  virtual std::pair<MeshID, int> adjacent_subelement(MeshID element, int face, int subface_idx) const override {
+    // TODO
+  }
+
+  Vertex vertex_coordinates(MeshID vertex_id) const override {
+    // TODO
+  }
+
+  std::vector<MeshID> element_connectivity(MeshID element) const override {
+    // TODO
+  }
+
+  MeshID get_boundary_face_element(MeshID face) const override {
+    // TODO
+  }
+
+  std::vector<MeshID> get_volume_surfaces(MeshID volume) const override {
+    // TODO
+  }
+
+  std::pair<MeshID, MeshID> surface_senses(MeshID surface) const override {
+    // TODO
+  }
+
+  Sense surface_sense(MeshID surface, MeshID volume) const override {
+    // TODO
+  }
+
+  MeshID create_volume() override { return next_volume_id(); }
+
+  void add_surface_to_volume(MeshID volume, MeshID surface, Sense sense, bool overwrite=false) override {
+    // TODO
+  }
+
+  void parse_metadata() override {}
+
+  MeshLibrary mesh_library() const override { return MeshLibrary::MOCK; }
+
+private:
+  const std::vector<Vertex> vertices_ {
+    {0.0, 0.0, 0.0},
+    {1.0, 0.0, 0.0},
+    {0.0, 1.0, 0.0},
+    {0.0, 0.0, 1.0},
+    {1.0, 0.0, 1.0},
+    {0.0, 1.0, 1.0},
+    {1.0, 1.0, 0.0},
+    {1.0, 1.0, 1.0}
+  };
+
+  // Two unit prism/wedge elements using MBCN vertex ordering.
+  const std::vector<std::array<int, 6>> prism_connectivity_ {
+    {0, 1, 2, 3, 4, 5},
+    {1, 2, 6, 3, 4, 7},
+  };
+};
+
+struct MockPrismElementFaceAccessor : public ElementFaceAccessor {
+  MockPrismElementFaceAccessor(const MockedPrismMesh* mesh_manager, MeshID element)
+    : ElementFaceAccessor(element), mesh_manager_(mesh_manager)
+  {
+    const auto connectivity = mesh_manager_->element_connectivity(element);
+    for (size_t i = 0; i < connectivity.size(); ++i) {
+      element_vertices_[i] = mesh_manager_->vertex_coordinates(connectivity[i]);
+    }
+  }
+
+  std::vector<Vertex> face_vertices(int i) const override {
+    static constexpr std::array<std::array<int, 3>, 2> tri_ordering {
+      std::array<int, 3> {0, 2, 1},
+      std::array<int, 3> {3, 4, 5}
+    };
+
+    static constexpr std::array<std::array<int, 4>, 3> quad_ordering {
+      std::array<int, 4>{0, 1, 4, 3},
+      std::array<int, 4>{1, 2, 5, 4},
+      std::array<int, 4>{2, 0, 3, 5},
+    };
+
+    if (i == 0) {
+      const auto& face = tri_ordering.at(0);
+      return {
+        element_vertices_[face[0]],
+        element_vertices_[face[1]],
+        element_vertices_[face[2]]
+      };
+    } else if (i == 4) {
+      const auto& face = tri_ordering.at(1);
+      return {
+        element_vertices_[face[0]],
+        element_vertices_[face[1]],
+        element_vertices_[face[2]]
+      };
+    } else {
+      const auto& face = quad_ordering.at(i - 1);
+      return {
+        element_vertices_[face[0]],
+        element_vertices_[face[1]],
+        element_vertices_[face[2]],
+        element_vertices_[face[3]]
+      };
+    }
+  }
+
+  int num_faces() const override { return 5; }
+
+  bool has_sub_faces() const override { return false; }
+
+  int num_sub_faces(int i) const override { return 1; }
+
+  const MockedPrismMesh* mesh_manager_;
+  std::array<Vertex, 6> element_vertices_;
+};
+
 } // namespace xdg
 
 #endif // XDG_TESTING_MESH_MOCKS_H
