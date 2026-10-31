@@ -17,6 +17,7 @@ test_no_geom
 test_ray_duals
 test_xdg_interface
 test_tet_containment
+test_prism_containment
 test_hex_containment
 test_tracks
 test_walk_elements
