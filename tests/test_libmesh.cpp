@@ -764,6 +764,19 @@ TEST_CASE("AMR mesh")
   }
 }
 
+TEST_CASE("TEST libMesh Raytrace Prisms")
+{
+  std::shared_ptr<XDG> xdg = XDG::create(MeshLibrary::LIBMESH);
+  xdg->mesh_manager()->mesh_library();
+  REQUIRE(xdg->mesh_manager()->mesh_library() == MeshLibrary::LIBMESH);
+  const auto& mesh_manager = xdg->mesh_manager();
+  mesh_manager->load_file("prism_mesh.exo");
+  mesh_manager->init();
+  xdg->prepare_raytracer();
+
+  REQUIRE(mesh_manager->num_volumes() == 5);
+}
+
 TEMPLATE_TEST_CASE("TEST libMesh Raytrace Quads", "[libMesh][faces][quads]",
                    Embree_Raytracer)
 {
