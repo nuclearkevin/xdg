@@ -3,6 +3,7 @@
 #include "xdg/error.h"
 
 #include "libmesh/cell_tet4.h"
+#include "libmesh/cell_prism6.h"
 #include "libmesh/cell_hex8.h"
 
 namespace xdg {
@@ -75,6 +76,13 @@ SurfaceFaceType SidePair::face_type() const {
       return SurfaceFaceType::TRI;
     case libMesh::HEX8:
       return SurfaceFaceType::QUAD;
+    case libMesh::PRISM6: {
+      if (side_num_ == 0 || side_num_ == 4) {
+        return SurfaceFaceType::TRI;
+      } else {
+        return SurfaceFaceType::QUAD;
+      }
+    }
     default:
       return SurfaceFaceType::UNSUPPORTED;
   }
@@ -171,6 +179,22 @@ std::vector<MeshID> SidePair::face_vertices() const {
       for (unsigned int i = 0; i < 4; ++i) {
         const auto node_ptr = elem->node_ptr(libMesh::Hex8::side_nodes_map[side_num][i]);
         vertex_ids.push_back(node_ptr->id());
+      }
+      break;
+    }
+    case libMesh::PRISM6: {
+      if (side_num == 0 || side_num == 4) {
+        vertex_ids.reserve(3);
+        for (unsigned int i = 0; i < 3; ++i) {
+          const auto node_ptr = elem->node_ptr(libMesh::Prism6::side_nodes_map[side_num][i]);
+          vertex_ids.push_back(node_ptr->id());
+        }
+      } else {
+        vertex_ids.reserve(4);
+        for (unsigned int i = 0; i < 4; ++i) {
+          const auto node_ptr = elem->node_ptr(libMesh::Prism6::side_nodes_map[side_num][i]);
+          vertex_ids.push_back(node_ptr->id());
+        }
       }
       break;
     }

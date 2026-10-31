@@ -47,9 +47,9 @@ void XDG::prepare_raytracer()
 }
 
 void XDG::prepare_volume_for_raytracing(MeshID volume) {
-    auto [surface_tree, volume_tree] = ray_tracing_interface_->register_volume(mesh_manager_, volume);
-    volume_to_surface_tree_map_[volume] = surface_tree;
-    volume_to_point_location_tree_map_[volume] = volume_tree;
+  auto [surface_tree, volume_tree] = ray_tracing_interface_->register_volume(mesh_manager_, volume);
+  volume_to_surface_tree_map_[volume] = surface_tree;
+  volume_to_point_location_tree_map_[volume] = volume_tree;
 }
 
 std::shared_ptr<XDG> XDG::create(MeshLibrary mesh_lib, RTLibrary ray_tracing_lib)

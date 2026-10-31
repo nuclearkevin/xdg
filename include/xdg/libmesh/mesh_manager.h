@@ -303,7 +303,7 @@ struct LibMeshElementFaceAccessor : public ElementFaceAccessor {
         break;
       }
       case libMesh::PRISM6: {
-        if (i == 0 || i == 5) {
+        if (i == 0 || i == 4) {
           // TRI3 faces
           coords.reserve(3);
           for (int j = 0; j < 3; j++) {
@@ -318,6 +318,7 @@ struct LibMeshElementFaceAccessor : public ElementFaceAccessor {
             coords.push_back({(*node_ptr)(0), (*node_ptr)(1), (*node_ptr)(2)});
           }
         }
+        break;
       }
       case libMesh::HEX8: {
         coords.reserve(4);
