@@ -88,6 +88,7 @@ MeshManager::num_volume_element_faces(MeshID volume) const
   auto elem_type = get_volume_element_type(volume);
   switch (elem_type) {
     case VolumeElementType::TET: return 4 * num_elem;
+    case VolumeElementType::PRISM: return 5 * num_elem;
     case VolumeElementType::HEX: return 6 * num_elem;
     default: {
       fatal_error("Unsupported element type in 'num_volume_element_faces' {}", elem_type);
